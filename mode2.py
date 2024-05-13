@@ -28,36 +28,42 @@ class Mode2Navigator:
         if not self.sites:
             return [(None, 0)] * self.n_teams  # Handle case with no sites available
 
+        # We will track changes to gold and guardians in a temporary structure to avoid mid-iteration updates.
+        site_updates = {site.get_name(): [site.get_gold(), site.get_guardians()] for site in self.sites}
+
         for _ in range(self.n_teams):
             best_score = float('-inf')
             best_choice = (None, 0)  # Option to do nothing
 
             for site in self.sites:
-                if site.get_guardians() > 0:
-                    gold_received = min((site.get_gold() * adventurer_size) / site.get_guardians(), site.get_gold())
+                current_gold, current_guardians = site_updates[site.get_name()]
+                if current_guardians > 0:
+                    adventurers_used = min(adventurer_size, current_guardians)
+                    gold_received = min((current_gold * adventurers_used) / current_guardians, current_gold)
                 else:
-                    gold_received = site.get_gold()
+                    adventurers_used = adventurer_size
+                    gold_received = current_gold
 
-                remaining_adventurers = max(0, adventurer_size - site.get_guardians())
+                remaining_adventurers = adventurer_size - adventurers_used
                 potential_score = 2.5 * remaining_adventurers + gold_received
 
                 if potential_score > best_score:
                     best_score = potential_score
-                    best_choice = (site, adventurer_size)
+                    best_choice = (site, adventurers_used)
 
+            results.append(best_choice)
             if best_choice[0]:
-                # Update the site's gold and guardians
                 site = best_choice[0]
-                if site.get_guardians() > 0:
-                    gold_received = min((site.get_gold() * adventurer_size) / site.get_guardians(), site.get_gold())
-                else:
-                    gold_received = site.get_gold()
-                
-                site.set_gold(site.get_gold() - gold_received)
-                site.set_guardians(max(0, site.get_guardians() - adventurer_size))
-                results.append(best_choice)
-            else:
-                results.append(best_choice)
+                _, current_guardians = site_updates[site.get_name()]
+                current_gold, _ = site_updates[site.get_name()]
+                site_updates[site.get_name()][0] -= gold_received
+                site_updates[site.get_name()][1] -= adventurers_used
+
+        # Update the actual site information only after all decisions have been made.
+        for site in self.sites:
+            updates = site_updates[site.get_name()]
+            site.set_gold(updates[0])
+            site.set_guardians(updates[1])
 
         return results
 
