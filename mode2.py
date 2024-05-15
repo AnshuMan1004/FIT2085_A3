@@ -66,4 +66,3 @@ class Mode2Navigator:
             site.set_guardians(updates[1])
 
         return results
-
